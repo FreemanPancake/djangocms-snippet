@@ -4,9 +4,11 @@ from django.contrib.admin import helpers
 from django.contrib.admin.exceptions import DisallowedModelAdminToField
 from django.contrib.admin.options import IS_POPUP_VAR, TO_FIELD_VAR
 from django.contrib.admin.utils import flatten_fieldsets, unquote
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.forms import Textarea
-from django.urls import path
+from django.template.loader import render_to_string
+from django.urls import path, reverse_lazy
 from django.utils.translation import gettext as _
 
 from cms.utils.permissions import get_model_permission_codename
@@ -161,3 +163,27 @@ class SnippetAdmin(*snippet_admin_classes):
                 get_model_permission_codename(self.model, 'add'),
             )
         return False
+    
+    def _get_references_link(self, obj):
+        url_content_type = ContentType.objects.get(
+            app_label=self.model._meta.app_label, model=Snippet._meta.model_name,
+        )
+
+        url = reverse_lazy(
+            "djangocms_references:references-index",
+            kwargs={
+                "content_type_id": url_content_type.id,
+                "object_id": obj.id
+            }
+        )
+
+        return render_to_string(
+            "djangocms_references/references_icon.html",
+            {"url": url}
+        )
+    
+    def get_list_actions(self):
+        return [
+            *super().get_list_actions(),
+            self._get_references_link
+        ]
